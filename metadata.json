@@ -1,0 +1,7 @@
+{
+  "name": "Lemari Arsip Digital Pribadi",
+  "description": "A secure personal digital vault to scan, tag, and manage your important documents like IDs, passports, and certificates. Features a free tier with limited storage and a premium subscription for unlimited access and enhanced features.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
