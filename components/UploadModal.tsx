@@ -18,6 +18,7 @@ const UploadModal: React.FC<UploadModalProps> = ({ onClose, onAdd }) => {
   const [fullFileDataUrl, setFullFileDataUrl] = useState<string | null>(null);
   const [fileType, setFileType] = useState<'image' | 'pdf' | null>(null);
   const [error, setError] = useState<string>('');
+  const [fileToConfirm, setFileToConfirm] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const resetAndShowOptions = () => {
@@ -89,13 +90,10 @@ const UploadModal: React.FC<UploadModalProps> = ({ onClose, onAdd }) => {
     }
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const processFile = async (file: File) => {
     if (file.size > 10 * 1024 * 1024) { // 10MB limit
       setError('File size exceeds 10MB limit.');
-      setMode('options');
+      resetAndShowOptions();
       return;
     }
 
@@ -116,7 +114,29 @@ const UploadModal: React.FC<UploadModalProps> = ({ onClose, onAdd }) => {
       handlePdfFile(file);
     } else {
       setError('Unsupported file type. Please upload an image or a PDF.');
+      resetAndShowOptions();
     }
+  };
+
+  const handleConfirmUpload = () => {
+    if (fileToConfirm) {
+      processFile(fileToConfirm);
+    }
+    setFileToConfirm(null);
+  };
+
+  const handleCancelUpload = () => {
+    setFileToConfirm(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+  
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setFileToConfirm(file);
   };
 
   const handleCapture = (dataUrl: string) => {
@@ -240,6 +260,31 @@ const UploadModal: React.FC<UploadModalProps> = ({ onClose, onAdd }) => {
           </button>
         </div>
         {renderContent()}
+
+        {fileToConfirm && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center bg-brand-secondary/80 backdrop-blur-sm rounded-lg animate-fade-in-up">
+            <div className="bg-brand-secondary rounded-lg shadow-2xl w-full max-w-sm border border-slate-700 mx-4">
+              <div className="p-6">
+                <h3 className="text-lg font-semibold text-white text-center">Confirm Upload</h3>
+                <p className="mt-2 text-slate-300 text-center">Are you sure you want to proceed with this file?</p>
+                <div className="mt-4 bg-brand-primary/80 p-3 rounded-lg border border-slate-700 space-y-1">
+                  <p className="text-slate-200 truncate font-medium">
+                    <span className="font-normal text-slate-400">File: </span> 
+                    {fileToConfirm.name}
+                  </p>
+                  <p className="text-slate-400">
+                    <span>Size: </span> 
+                    {(fileToConfirm.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                </div>
+              </div>
+              <div className="p-4 bg-brand-primary/50 rounded-b-lg flex justify-end gap-4">
+                <button onClick={handleCancelUpload} className="font-semibold py-2 px-4 rounded-md hover:bg-slate-700 transition-colors text-slate-300">Cancel</button>
+                <button onClick={handleConfirmUpload} className="bg-brand-accent text-white font-semibold py-2 px-6 rounded-md hover:bg-blue-500 transition-colors">Confirm</button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

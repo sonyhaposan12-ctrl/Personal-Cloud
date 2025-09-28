@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Document } from '../types';
 import XIcon from './icons/XIcon';
 import TagIcon from './icons/TagIcon';
@@ -9,6 +9,98 @@ interface ViewDocumentModalProps {
   onClose: () => void;
   onSendRequest: (doc: Document) => void;
 }
+
+const PdfViewer: React.FC<{ fileDataUrl: string }> = ({ fileDataUrl }) => {
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [pageCount, setPageCount] = useState(0);
+  const [currentPage, setCurrentPage] = useState(0);
+
+
+  useEffect(() => {
+    const renderPdf = async () => {
+      const canvasContainer = canvasContainerRef.current;
+      if (!canvasContainer) return;
+      
+      // Clear previous content and reset state
+      canvasContainer.innerHTML = '';
+      setLoading(true);
+      setError(null);
+      setCurrentPage(0);
+      setPageCount(0);
+
+      try {
+        const pdfjsLib = (window as any).pdfjsLib;
+        if (!pdfjsLib) {
+          throw new Error("pdf.js library is not loaded.");
+        }
+        
+        // Decode Base64 to Uint8Array for pdf.js
+        const pdfData = atob(fileDataUrl.substring(fileDataUrl.indexOf(',') + 1));
+        const uint8Array = new Uint8Array(pdfData.length);
+        for (let i = 0; i < pdfData.length; i++) {
+          uint8Array[i] = pdfData.charCodeAt(i);
+        }
+        
+        const pdf = await pdfjsLib.getDocument({ data: uint8Array }).promise;
+        setPageCount(pdf.numPages);
+        
+        const scale = window.innerWidth > 1024 ? 1.5 : 1.0;
+
+        // Render pages sequentially
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+          // Check if component is still mounted before continuing
+          if (!canvasContainerRef.current) break;
+
+          setCurrentPage(pageNum);
+          const page = await pdf.getPage(pageNum);
+          const viewport = page.getViewport({ scale });
+          
+          const canvas = document.createElement('canvas');
+          canvas.className = 'mb-4 shadow-lg';
+          const context = canvas.getContext('2d');
+          if (!context) throw new Error('Could not get canvas context');
+          
+          canvas.height = viewport.height;
+          canvas.width = viewport.width;
+          
+          await page.render({ canvasContext: context, viewport: viewport }).promise;
+          
+          canvasContainerRef.current?.appendChild(canvas);
+        }
+
+      } catch (err) {
+        console.error('PDF rendering error:', err);
+        setError('Failed to load PDF preview. The file may be corrupted or unsupported.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    renderPdf();
+
+  }, [fileDataUrl]);
+
+  return (
+    <div className="w-full h-full flex flex-col items-center p-4">
+      {loading && (
+        <div className="flex flex-col items-center justify-center h-full text-white">
+          <div className="w-8 h-8 border-4 border-slate-500 border-t-brand-accent rounded-full animate-spin"></div>
+          <p className="mt-4">Loading PDF...</p>
+          {pageCount > 0 && <p className="text-sm text-slate-400">Rendering page {currentPage} of {pageCount}</p>}
+        </div>
+      )}
+      {error && (
+        <div className="flex items-center justify-center h-full text-red-500 text-center">
+          <p>{error}</p>
+        </div>
+      )}
+      <div ref={canvasContainerRef} className={`flex flex-col items-center ${loading ? 'hidden' : ''}`}></div>
+    </div>
+  );
+};
+
 
 const ViewDocumentModal: React.FC<ViewDocumentModalProps> = ({ document, onClose, onSendRequest }) => {
   return (
@@ -36,18 +128,15 @@ const ViewDocumentModal: React.FC<ViewDocumentModalProps> = ({ document, onClose
         
         <div className="flex-grow overflow-y-auto bg-black/50">
            {document.fileType === 'pdf' ? (
-             <iframe
-                src={document.fileDataUrl}
-                title={document.title}
-                className="w-full h-full min-h-[75vh]"
-                frameBorder="0"
-             />
+             <PdfViewer fileDataUrl={document.fileDataUrl} />
            ) : (
-             <img 
-                src={document.fileDataUrl} 
-                alt={document.title} 
-                className="w-full h-auto object-contain p-4" 
-            />
+             <div className="w-full h-full flex items-center justify-center p-4">
+                 <img 
+                    src={document.fileDataUrl} 
+                    alt={document.title} 
+                    className="max-w-full max-h-full object-contain" 
+                />
+             </div>
            )}
         </div>
 

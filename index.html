@@ -29,12 +29,15 @@
         },
       }
     </script>
-    <script src="https://unpkg.com/pdfjs-dist@4.4.168/build/pdf.min.js"></script>
     <script>
-      if (typeof pdfjsLib !== 'undefined') {
-        pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@4.4.168/build/pdf.worker.min.js`;
+      function configurePdfJs() {
+        // This function is called once the pdf.js library has loaded.
+        if (typeof window.pdfjsLib !== 'undefined') {
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@4.4.168/build/pdf.worker.min.js`;
+        }
       }
     </script>
+    <script src="https://unpkg.com/pdfjs-dist@4.4.168/build/pdf.min.js" onload="configurePdfJs()"></script>
   <script type="importmap">
 {
   "imports": {
